@@ -18,6 +18,8 @@ dependencies:
   collection: ^1.15.0
   equatable: ^2.0.0
   path: ^1.9.0
+  image: ^4.3.0
+  uuid: ^4.5.1
 
 dev_dependencies:
   test: ^1.23.0

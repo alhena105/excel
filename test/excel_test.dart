@@ -1115,4 +1115,35 @@ void main() {
     expect(sheetObject.getRowHeight(1), greaterThan(38));
     expect(sheetObject.getRowHeight(1), lessThan(42));
   });
+
+  test('Add image to sheet', () async {
+    // 엑셀 파일 열기
+    var excel = Excel.createExcel();
+
+    // 이미지 파일 읽기
+    var imageFile = './test/test_resources/starry_night.jpg';
+    var imageBytes = File(imageFile).readAsBytesSync();
+
+    // Sheet1에 이미지 추가
+    excel.addImage(
+      sheet: 'Sheet1',
+      imageBytes: imageBytes,
+      cellIndex: CellIndex.indexByString('B2'),
+    );
+
+    // 결과 파일 저장
+    var resultBytes = excel.save();
+    if (resultBytes != null) {
+      Directory('./test/tmp').createSync(recursive: true);
+      File('./test/tmp/image_sample.xlsx')
+        ..createSync(recursive: true)
+        ..writeAsBytesSync(resultBytes);
+    }
+
+    // 저장된 파일이 존재하는지 확인
+    expect(File('./test/tmp/image_sample.xlsx').existsSync(), true);
+
+    // 임시 폴더 삭제
+    // Directory('./test/tmp').deleteSync(recursive: true);
+  });
 }

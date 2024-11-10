@@ -48,7 +48,7 @@ class Excel {
 
   String _stylesTarget = '';
   String _sharedStringsTarget = '';
-  String get _absSharedStringsTarget {
+  get _absSharedStringsTarget {
     if (_sharedStringsTarget.isNotEmpty && _sharedStringsTarget[0] == "/") {
       return _sharedStringsTarget.substring(1);
     }
@@ -583,6 +583,164 @@ class Excel {
     if (!_rtlChangeLook.contains(value)) {
       _rtlChangeLook.add(value);
       _rtlChanges = true;
+    }
+  }
+}
+
+extension ImageExtension on Excel {
+  void addImage({
+    required String sheet,
+    required Uint8List imageBytes,
+    required CellIndex cellIndex,
+    String? name,
+  }) {
+    final image = ExcelImage.from(imageBytes, name: name);
+
+    // 1. media 폴더에 이미지 추가
+    _archive.addFile(image.toArchiveFile());
+
+    // 2. drawing.xml 파일 생성
+    _createDrawingFile(sheet, image, cellIndex);
+
+    // 3. drawing relationships 파일 생성
+    _createDrawingRels(sheet, image);
+
+    // 4. worksheet relationships 업데이트
+    _updateWorksheetRels(sheet);
+
+    // 5. Content Types에 이미지 타입 추가
+    _updateContentTypes(image);
+  }
+
+  void _createDrawingRels(String sheet, ExcelImage image) {
+    final relsContent =
+        '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="${image.id}" 
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" 
+                Target="../media/${image.name}"/>
+</Relationships>''';
+
+    _archive.addFile(ArchiveFile(
+      'xl/drawings/_rels/drawing1.xml.rels',
+      relsContent.length,
+      utf8.encode(relsContent),
+    ));
+  }
+
+  void _updateContentTypes(ExcelImage image) {
+    final types =
+        _xmlFiles['[Content_Types].xml']!.findAllElements('Types').first;
+
+    // 이미지 확장자에 대한 ContentType이 없으면 추가
+    if (!types.children.any((node) =>
+        node is XmlElement &&
+        node.getAttribute('Extension') == image.extension.substring(1))) {
+      types.children.add(XmlElement(
+        XmlName('Default'),
+        <XmlAttribute>[
+          XmlAttribute(XmlName('Extension'), image.extension.substring(1)),
+          XmlAttribute(XmlName('ContentType'), image.contentType),
+        ],
+      ));
+    }
+  }
+
+  void _createDrawingFile(String sheet, ExcelImage image, CellIndex cellIndex) {
+    final drawingXml =
+        '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"
+          xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <xdr:oneCellAnchor>
+    <xdr:from>
+      <xdr:col>${cellIndex.columnIndex}</xdr:col>
+      <xdr:colOff>0</xdr:colOff>
+      <xdr:row>${cellIndex.rowIndex}</xdr:row>
+      <xdr:rowOff>0</xdr:rowOff>
+    </xdr:from>
+    <xdr:ext cx="${image.width * 9525}" cy="${image.height * 9525}"/>
+    <xdr:pic>
+      <xdr:nvPicPr>
+        <xdr:cNvPr id="1" name="${image.name}"/>
+        <xdr:cNvPicPr>
+          <a:picLocks noChangeAspect="1"/>
+        </xdr:cNvPicPr>
+      </xdr:nvPicPr>
+      <xdr:blipFill>
+        <a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="${image.id}">
+        </a:blip>
+        <a:stretch>
+          <a:fillRect/>
+        </a:stretch>
+      </xdr:blipFill>
+      <xdr:spPr>
+        <a:xfrm>
+          <a:off x="0" y="0"/>
+          <a:ext cx="${image.width * 9525}" cy="${image.height * 9525}"/>
+        </a:xfrm>
+        <a:prstGeom prst="rect">
+          <a:avLst/>
+        </a:prstGeom>
+      </xdr:spPr>
+    </xdr:pic>
+    <xdr:clientData/>
+  </xdr:oneCellAnchor>
+</xdr:wsDr>''';
+
+    _archive.addFile(ArchiveFile(
+      'xl/drawings/drawing1.xml',
+      drawingXml.length,
+      utf8.encode(drawingXml),
+    ));
+  }
+
+  void _updateWorksheetRels(String sheet) {
+    // worksheet rels 파일 경로 생성
+    final sheetRelsPath =
+        'xl/worksheets/_rels/${_xmlSheetId[sheet]!.split('/').last}.rels';
+
+    // 기존 rels 파일이 있는지 확인
+    var relsFile = _archive.findFile(sheetRelsPath);
+
+    if (relsFile == null) {
+      // 새로운 rels 파일 생성
+      final relsContent =
+          '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" 
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" 
+                Target="../drawings/drawing1.xml"/>
+</Relationships>''';
+
+      _archive.addFile(ArchiveFile(
+        sheetRelsPath,
+        relsContent.length,
+        utf8.encode(relsContent),
+      ));
+
+      // worksheet XML 업데이트
+      final worksheet = _xmlFiles[_xmlSheetId[sheet]]!;
+      final sheetData = worksheet.findAllElements('sheetData').first;
+
+      // drawing 요소 추가
+      final drawingElement = XmlElement(
+        XmlName('drawing'),
+        [XmlAttribute(XmlName('r:id'), 'rId1')],
+      );
+
+      // 기존 drawing 요소가 있는지 확인하고 없으면 추가
+      if (!worksheet.findAllElements('drawing').any((element) => true)) {
+        // dimension 요소 다음, sheetData 이전에 drawing 요소 추가
+        final dimensionElement = worksheet.findAllElements('dimension').first;
+        final dimensionIndex = worksheet.children.indexOf(dimensionElement);
+        worksheet.children.insert(dimensionIndex + 1, drawingElement);
+      }
+
+      // 파일 업데이트
+      final sheetId = _xmlSheetId[sheet];
+      if (sheetId != null) {
+        _xmlFiles[sheetId] = worksheet;
+      }
     }
   }
 }
