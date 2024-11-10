@@ -48,7 +48,7 @@ class Excel {
 
   String _stylesTarget = '';
   String _sharedStringsTarget = '';
-  String get _absSharedStringsTarget {
+  get _absSharedStringsTarget {
     if (_sharedStringsTarget.isNotEmpty && _sharedStringsTarget[0] == "/") {
       return _sharedStringsTarget.substring(1);
     }
@@ -583,6 +583,227 @@ class Excel {
     if (!_rtlChangeLook.contains(value)) {
       _rtlChangeLook.add(value);
       _rtlChanges = true;
+    }
+  }
+}
+
+extension ImageExtension on Excel {
+  void addImage({
+    required String sheet,
+    required Uint8List imageBytes,
+    required CellIndex cellIndex,
+    String? name,
+    int? widthInPixels, // 픽셀 단위
+    int? heightInPixels, // 픽셀 단위
+    int offsetXInPixels = 0,
+    int offsetYInPixels = 0,
+  }) {
+    final image = ExcelImage.from(
+      imageBytes,
+      name: name,
+      widthInPixels: widthInPixels,
+      heightInPixels: heightInPixels,
+      offsetXInPixels: offsetXInPixels,
+      offsetYInPixels: offsetYInPixels,
+    );
+
+    _archive.addFile(image.toArchiveFile());
+    _createDrawingFile(sheet, image, cellIndex);
+    _createDrawingRels(sheet, image);
+    _updateWorksheetRels(sheet);
+    _updateContentTypes(image);
+  }
+
+  void _createDrawingRels(String sheet, ExcelImage image) {
+    final relsPath = 'xl/drawings/_rels/drawing1.xml.rels';
+    var existingFile = _archive.findFile(relsPath);
+
+    String relsContent;
+    if (existingFile != null) {
+      // 기존 rels 파일이 있는 경우
+      existingFile.decompress();
+      var xmlDoc = XmlDocument.parse(utf8.decode(existingFile.content));
+      var relationships = xmlDoc.findAllElements('Relationships').first;
+
+      // 새로운 Relationship 추가
+      relationships.children.add(XmlElement(XmlName('Relationship'), [
+        XmlAttribute(XmlName('Id'), image.id),
+        XmlAttribute(XmlName('Type'),
+            'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image'),
+        XmlAttribute(XmlName('Target'), '../media/${image.name}'),
+      ], []));
+
+      relsContent = xmlDoc.toXmlString(pretty: true);
+    } else {
+      // 새로운 rels 파일 생성
+      relsContent = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="${image.id}" 
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" 
+                Target="../media/${image.name}"/>
+</Relationships>''';
+    }
+
+    _archive.addFile(ArchiveFile(
+      relsPath,
+      relsContent.length,
+      utf8.encode(relsContent),
+    ));
+  }
+
+  void _updateContentTypes(ExcelImage image) {
+    final types =
+        _xmlFiles['[Content_Types].xml']!.findAllElements('Types').first;
+
+    if (!types.children.any((node) =>
+        node is XmlElement &&
+        node.getAttribute('Extension') == image.extension.substring(1))) {
+      types.children.add(XmlElement(
+        XmlName('Default'),
+        <XmlAttribute>[
+          XmlAttribute(XmlName('Extension'), image.extension.substring(1)),
+          XmlAttribute(XmlName('ContentType'), image.contentType),
+        ],
+      ));
+    }
+  }
+
+  void _createDrawingFile(String sheet, ExcelImage image, CellIndex cellIndex) {
+    final drawingPath = 'xl/drawings/drawing1.xml';
+    var existingFile = _archive.findFile(drawingPath);
+
+    String drawingXml;
+    if (existingFile != null) {
+      existingFile.decompress();
+      var xmlDoc = XmlDocument.parse(utf8.decode(existingFile.content));
+      var wsDr = xmlDoc.findAllElements('xdr:wsDr').first;
+      wsDr.children.add(_createImageElement(image, cellIndex));
+      drawingXml = xmlDoc.toXmlString(pretty: false);
+    } else {
+      drawingXml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" 
+          xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  ${_createImageElement(image, cellIndex)}
+</xdr:wsDr>''';
+    }
+
+    _archive.addFile(ArchiveFile(
+      drawingPath,
+      drawingXml.length,
+      utf8.encode(drawingXml),
+    ));
+  }
+
+  XmlElement _createImageElement(ExcelImage image, CellIndex cellIndex) {
+    return XmlElement(XmlName('xdr:oneCellAnchor'), [], [
+      XmlElement(XmlName('xdr:from'), [], [
+        XmlElement(
+            XmlName('xdr:col'), [], [XmlText('${cellIndex.columnIndex}')]),
+        XmlElement(XmlName('xdr:colOff'), [], [XmlText('${image.offsetX}')]),
+        XmlElement(XmlName('xdr:row'), [], [XmlText('${cellIndex.rowIndex}')]),
+        XmlElement(XmlName('xdr:rowOff'), [], [XmlText('${image.offsetY}')]),
+      ]),
+      XmlElement(XmlName('xdr:ext'), [
+        XmlAttribute(XmlName('cx'), '${image.width}'),
+        XmlAttribute(XmlName('cy'), '${image.height}'),
+      ], []),
+      XmlElement(XmlName('xdr:pic'), [], [
+        XmlElement(XmlName('xdr:nvPicPr'), [], [
+          XmlElement(XmlName('xdr:cNvPr'), [
+            XmlAttribute(XmlName('id'), '${image.nvPrId}'),
+            XmlAttribute(XmlName('name'), image.name),
+          ], [
+            XmlElement(XmlName('a:extLst'), [], [
+              XmlElement(XmlName('a:ext'), [
+                XmlAttribute(
+                    XmlName('uri'), '{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}'),
+              ], [
+                XmlElement(XmlName('a16:creationId'), [
+                  XmlAttribute(XmlName('xmlns:a16'),
+                      'http://schemas.microsoft.com/office/drawing/2014/main'),
+                  XmlAttribute(XmlName('id'),
+                      '{00000000-0008-0000-0000-00000${image.nvPrId}000000}'),
+                ], []),
+              ]),
+            ]),
+          ]),
+          XmlElement(XmlName('xdr:cNvPicPr'), [], [
+            XmlElement(XmlName('a:picLocks'), [
+              XmlAttribute(XmlName('noChangeAspect'), '1'),
+            ], []),
+          ]),
+        ]),
+        XmlElement(XmlName('xdr:blipFill'), [], [
+          XmlElement(XmlName('a:blip'), [
+            XmlAttribute(XmlName('xmlns:r'),
+                'http://schemas.openxmlformats.org/officeDocument/2006/relationships'),
+            XmlAttribute(XmlName('r:embed'), image.id),
+          ], []),
+          XmlElement(XmlName('a:stretch'), [], [
+            XmlElement(XmlName('a:fillRect'), [], []),
+          ]),
+        ]),
+        XmlElement(XmlName('xdr:spPr'), [], [
+          XmlElement(XmlName('a:xfrm'), [], [
+            XmlElement(XmlName('a:off'), [
+              XmlAttribute(XmlName('x'), '${image.offsetX}'),
+              XmlAttribute(XmlName('y'), '${image.offsetY}'),
+            ], []),
+            XmlElement(XmlName('a:ext'), [
+              XmlAttribute(XmlName('cx'), '${image.width}'),
+              XmlAttribute(XmlName('cy'), '${image.height}'),
+            ], []),
+          ]),
+          XmlElement(XmlName('a:prstGeom'), [
+            XmlAttribute(XmlName('prst'), 'rect'),
+          ], [
+            XmlElement(XmlName('a:avLst'), [], []),
+          ]),
+        ]),
+      ]),
+      XmlElement(XmlName('xdr:clientData'), [], []),
+    ]);
+  }
+
+  void _updateWorksheetRels(String sheet) {
+    final sheetRelsPath =
+        'xl/worksheets/_rels/${_xmlSheetId[sheet]!.split('/').last}.rels';
+
+    var relsFile = _archive.findFile(sheetRelsPath);
+
+    if (relsFile == null) {
+      final relsContent =
+          '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" 
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" 
+                Target="../drawings/drawing1.xml"/>
+</Relationships>''';
+
+      _archive.addFile(ArchiveFile(
+        sheetRelsPath,
+        relsContent.length,
+        utf8.encode(relsContent),
+      ));
+
+      final worksheet = _xmlFiles[_xmlSheetId[sheet]]!;
+      final sheetData = worksheet.findAllElements('sheetData').first;
+
+      final drawingElement = XmlElement(
+        XmlName('drawing'),
+        [XmlAttribute(XmlName('r:id'), 'rId1')],
+      );
+
+      if (!worksheet.findAllElements('drawing').any((element) => true)) {
+        final dimensionElement = worksheet.findAllElements('dimension').first;
+        final dimensionIndex = worksheet.children.indexOf(dimensionElement);
+        worksheet.children.insert(dimensionIndex + 1, drawingElement);
+      }
+
+      final sheetId = _xmlSheetId[sheet];
+      if (sheetId != null) {
+        _xmlFiles[sheetId] = worksheet;
+      }
     }
   }
 }

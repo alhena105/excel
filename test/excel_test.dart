@@ -120,6 +120,33 @@ void main() {
     );
   });
 
+  test('Cell image Data-Type from Google Spreadsheet', () {
+    var file = './test/test_resources/table_with_image.xlsx';
+    var bytes = File(file).readAsBytesSync();
+    var excel = Excel.decodeBytes(bytes);
+
+    final squareImage = File('./test/test_resources/square.png');
+    final whiteImage = File('./test/test_resources/white.jpg');
+    final starryNightImage = File('./test/test_resources/starry_night.jpg');
+
+    expect(
+      (excel.tables['list_with_images']?.rows[0][0]!.value as ImageCellValue)
+          .value,
+      equals(squareImage.readAsBytesSync()),
+    );
+    expect(
+      (excel.tables['list_with_images']?.rows[1][0]!.value as ImageCellValue)
+          .value,
+      equals(whiteImage.readAsBytesSync()),
+    );
+    expect(
+      (excel.tables['second_list_with_image']!.rows[0][0]!.value
+              as ImageCellValue)
+          .value,
+      equals(starryNightImage.readAsBytesSync()),
+    );
+  });
+
   test('Cell Data-Types from LibreOffice', () {
     var file = './test/test_resources/dataTypesUsingLibreoffice.xlsx';
     var bytes = File(file).readAsBytesSync();
@@ -1087,5 +1114,50 @@ void main() {
     // should 40 with a litle bit of tolerance.
     expect(sheetObject.getRowHeight(1), greaterThan(38));
     expect(sheetObject.getRowHeight(1), lessThan(42));
+  });
+
+  test('Add image to sheet', () async {
+    // 엑셀 파일 열기
+    var excel = Excel.createExcel();
+
+    // 이미지 파일 읽기
+    var imageFile = './test/test_resources/starry_night.jpg';
+    var imageBytes = File(imageFile).readAsBytesSync();
+
+    var imageFile2 = './test/test_resources/white.jpg';
+    var imageBytes2 = File(imageFile2).readAsBytesSync();
+
+    // Sheet1에 이미지 추가
+    excel.addImage(
+      sheet: 'Sheet1',
+      imageBytes: imageBytes,
+      cellIndex: CellIndex.indexByString('B2'),
+      widthInPixels: 500, // 100px 너비
+      heightInPixels: 500, // 100px 높이
+      offsetXInPixels: 10, // 10px X축 오프셋
+      offsetYInPixels: 10, // 10px Y축 오프셋
+    );
+
+// 크기를 지정하지 않으면 원본 크기의 1/2로 자동 설정됨
+    excel.addImage(
+      sheet: 'Sheet1',
+      imageBytes: imageBytes2,
+      cellIndex: CellIndex.indexByString('J2'),
+    );
+
+    // 결과 파일 저장
+    var resultBytes = excel.save();
+    if (resultBytes != null) {
+      Directory('./test/tmp').createSync(recursive: true);
+      File('./test/tmp/image_sample.xlsx')
+        ..createSync(recursive: true)
+        ..writeAsBytesSync(resultBytes);
+    }
+
+    // 저장된 파일이 존재하는지 확인
+    expect(File('./test/tmp/image_sample.xlsx').existsSync(), true);
+
+    // 임시 폴더 삭제
+    // Directory('./test/tmp').deleteSync(recursive: true);
   });
 }
