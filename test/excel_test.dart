@@ -1124,11 +1124,25 @@ void main() {
     var imageFile = './test/test_resources/starry_night.jpg';
     var imageBytes = File(imageFile).readAsBytesSync();
 
+    var imageFile2 = './test/test_resources/white.jpg';
+    var imageBytes2 = File(imageFile2).readAsBytesSync();
+
     // Sheet1에 이미지 추가
     excel.addImage(
       sheet: 'Sheet1',
       imageBytes: imageBytes,
       cellIndex: CellIndex.indexByString('B2'),
+      widthInPixels: 500, // 100px 너비
+      heightInPixels: 500, // 100px 높이
+      offsetXInPixels: 10, // 10px X축 오프셋
+      offsetYInPixels: 10, // 10px Y축 오프셋
+    );
+
+// 크기를 지정하지 않으면 원본 크기의 1/2로 자동 설정됨
+    excel.addImage(
+      sheet: 'Sheet1',
+      imageBytes: imageBytes2,
+      cellIndex: CellIndex.indexByString('J2'),
     );
 
     // 결과 파일 저장
