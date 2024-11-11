@@ -604,57 +604,80 @@ extension ImageExtension on Excel {
     String? name,
     int? widthInPixels,
     int? heightInPixels,
-    int offsetXInPixels = 0,
-    int offsetYInPixels = 0,
+    int? offsetXInPixels,
+    int? offsetYInPixels,
   }) {
     final sheetObject = _sheetMap[sheet];
     if (sheetObject == null) return;
 
-    double cellWidth;
-    double cellHeight;
+    // 셀 크기 계산
+    double columnWidth = (sheetObject.getColumnWidth(cellIndex.columnIndex) ??
+        sheetObject.defaultColumnWidth ??
+        _excelDefaultColumnWidth);
+    double cellWidth = sheetObject.columnWidthToPixels(columnWidth);
 
-    // 병합된 셀 확인
-    final mergedCell = sheetObject.getMergedCell(cellIndex);
+    double rowHeight = (sheetObject.getRowHeight(cellIndex.rowIndex) ??
+        sheetObject.defaultRowHeight ??
+        _excelDefaultRowHeight);
+    double cellHeight = sheetObject.rowHeightToPixels(rowHeight);
 
-    if (mergedCell != null) {
-      cellWidth = mergedCell.width;
-      cellHeight = mergedCell.height;
-    } else {
-      cellWidth = (sheetObject.getColumnWidth(cellIndex.columnIndex) ??
-              sheetObject.defaultColumnWidth ??
-              _excelDefaultColumnWidth) *
-          8;
-      cellHeight = (sheetObject.getRowHeight(cellIndex.rowIndex) ??
-              sheetObject.defaultRowHeight ??
-              _excelDefaultRowHeight) *
-          1.5;
+    // offset으로 인한 추가 셀 이동 계산
+    int additionalCols = 0;
+    int additionalRows = 0;
+    int remainingOffsetX = offsetXInPixels ?? 0;
+    int remainingOffsetY = offsetYInPixels ?? 0;
+
+    if (offsetXInPixels != null && offsetXInPixels > 0) {
+      additionalCols = (offsetXInPixels / cellWidth).floor();
+      remainingOffsetX = (offsetXInPixels % cellWidth).round();
     }
+
+    if (offsetYInPixels != null && offsetYInPixels > 0) {
+      additionalRows = (offsetYInPixels / cellHeight).floor();
+      remainingOffsetY = (offsetYInPixels % cellHeight).round();
+    }
+
+    // 새로운 셀 위치 계산
+    final newCellIndex = CellIndex.indexByColumnRow(
+      columnIndex: cellIndex.columnIndex + additionalCols,
+      rowIndex: cellIndex.rowIndex + additionalRows,
+    );
 
     final imageHash = _getImageHash(imageBytes);
     String rId;
     ExcelImage image;
 
-    // 크기가 지정되지 않고 fitToCell도 false인 경우에만 원본 크기 사용
+    // 이미지 생성 로직...
     if (!fitToCell && widthInPixels == null && heightInPixels == null) {
       image = ExcelImage.from(
         imageBytes,
         name: name,
-        offsetXInPixels: offsetXInPixels,
-        offsetYInPixels: offsetYInPixels,
+        offsetXInPixels: remainingOffsetX,
+        offsetYInPixels: remainingOffsetY,
         reuseRid: _imageCache[imageHash],
       );
     } else {
+      var calculatedHeight = heightInPixels;
+      if (widthInPixels != null && heightInPixels == null) {
+        final image = decodeImage(imageBytes);
+        if (image != null) {
+          var ratio = image.height / image.width;
+          calculatedHeight = (widthInPixels * ratio).round();
+        }
+      }
+
       image = ExcelImage.from(
         imageBytes,
         name: name,
         widthInPixels: widthInPixels,
-        heightInPixels: heightInPixels,
-        offsetXInPixels: offsetXInPixels,
-        offsetYInPixels: offsetYInPixels,
+        heightInPixels: calculatedHeight,
+        offsetXInPixels: remainingOffsetX,
+        offsetYInPixels: remainingOffsetY,
         reuseRid: _imageCache[imageHash],
       );
     }
 
+    // 이미지 처리 및 파일 생성...
     if (!_imageCache.containsKey(imageHash)) {
       rId = image.id;
       _imageCache[imageHash] = rId;
@@ -663,11 +686,9 @@ extension ImageExtension on Excel {
       _updateContentTypes(image);
     }
 
-    if (fitToCell) {
-      image.fitToCell(cellWidth, cellHeight);
-    }
+    image.calculateCellSpan(cellWidth, cellHeight);
 
-    _createDrawingFile(sheet, image, cellIndex);
+    _createDrawingFile(sheet, image, newCellIndex);
     _updateWorksheetRels(sheet);
   }
 
@@ -734,14 +755,14 @@ extension ImageExtension on Excel {
       existingFile.decompress();
       var xmlDoc = XmlDocument.parse(utf8.decode(existingFile.content));
       var wsDr = xmlDoc.findAllElements('xdr:wsDr').first;
-      wsDr.children.add(_createImageElement(image, cellIndex));
+      wsDr.children.add(_createImageElement(image, cellIndex, sheet));
       drawingXml = xmlDoc.toXmlString(pretty: false);
     } else {
       drawingXml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" 
           xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
           xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main">
-  ${_createImageElement(image, cellIndex)}
+  ${_createImageElement(image, cellIndex, sheet)}
 </xdr:wsDr>''';
     }
 
@@ -752,39 +773,34 @@ extension ImageExtension on Excel {
     ));
   }
 
-  XmlElement _createImageElement(ExcelImage image, CellIndex cellIndex) {
-    return XmlElement(XmlName('xdr:oneCellAnchor'), [], [
+  XmlElement _createImageElement(
+      ExcelImage image, CellIndex cellIndex, String sheet) {
+    final startCol = cellIndex.columnIndex;
+    final startRow = cellIndex.rowIndex;
+    final endCol = startCol + image.columnSpan - 1;
+    final endRow = startRow + image.rowSpan - 1;
+
+    return XmlElement(XmlName('xdr:twoCellAnchor'), [
+      XmlAttribute(XmlName('editAs'), 'oneCell')
+    ], [
       XmlElement(XmlName('xdr:from'), [], [
-        XmlElement(
-            XmlName('xdr:col'), [], [XmlText('${cellIndex.columnIndex}')]),
+        XmlElement(XmlName('xdr:col'), [], [XmlText('$startCol')]),
         XmlElement(XmlName('xdr:colOff'), [], [XmlText('${image.offsetX}')]),
-        XmlElement(XmlName('xdr:row'), [], [XmlText('${cellIndex.rowIndex}')]),
+        XmlElement(XmlName('xdr:row'), [], [XmlText('$startRow')]),
         XmlElement(XmlName('xdr:rowOff'), [], [XmlText('${image.offsetY}')]),
       ]),
-      XmlElement(XmlName('xdr:ext'), [
-        XmlAttribute(XmlName('cx'), '${image.width}'),
-        XmlAttribute(XmlName('cy'), '${image.height}'),
-      ], []),
+      XmlElement(XmlName('xdr:to'), [], [
+        XmlElement(XmlName('xdr:col'), [], [XmlText('$endCol')]),
+        XmlElement(XmlName('xdr:colOff'), [], [XmlText('${image.width}')]),
+        XmlElement(XmlName('xdr:row'), [], [XmlText('$endRow')]),
+        XmlElement(XmlName('xdr:rowOff'), [], [XmlText('${image.height}')]),
+      ]),
       XmlElement(XmlName('xdr:pic'), [], [
         XmlElement(XmlName('xdr:nvPicPr'), [], [
           XmlElement(XmlName('xdr:cNvPr'), [
             XmlAttribute(XmlName('id'), '${image.nvPrId}'),
             XmlAttribute(XmlName('name'), image.name),
-          ], [
-            XmlElement(XmlName('a:extLst'), [], [
-              XmlElement(XmlName('a:ext'), [
-                XmlAttribute(
-                    XmlName('uri'), '{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}'),
-              ], [
-                XmlElement(XmlName('a16:creationId'), [
-                  XmlAttribute(XmlName('xmlns:a16'),
-                      'http://schemas.microsoft.com/office/drawing/2014/main'),
-                  XmlAttribute(XmlName('id'),
-                      '{00000000-0008-0000-0000-00000${image.nvPrId}000000}'),
-                ], []),
-              ]),
-            ]),
-          ]),
+          ], []),
           XmlElement(XmlName('xdr:cNvPicPr'), [], [
             XmlElement(XmlName('a:picLocks'), [
               XmlAttribute(XmlName('noChangeAspect'), '1'),

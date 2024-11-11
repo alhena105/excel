@@ -1120,6 +1120,11 @@ void main() {
     // 엑셀 파일 열기
     var excel = Excel.createExcel();
 
+    var sheet = excel['Sheet1'];
+
+    sheet.setDefaultColumnWidth();
+    sheet.setDefaultRowHeight();
+
     // 이미지 파일 읽기
     var imageFile = './test/test_resources/starry_night.jpg';
     var imageBytes = File(imageFile).readAsBytesSync();
@@ -1127,42 +1132,37 @@ void main() {
     var imageFile2 = './test/test_resources/white.jpg';
     var imageBytes2 = File(imageFile2).readAsBytesSync();
 
-    excel.merge('Sheet1', CellIndex.indexByString('J2'),
-        CellIndex.indexByString('M14'));
+    excel.merge('Sheet1', CellIndex.indexByString('B2'),
+        CellIndex.indexByString('P52'));
 
-    // Sheet1에 이미지 추가
+    // excel.addImage(
+    //   sheet: 'Sheet1',
+    //   imageBytes: imageBytes,
+    //   cellIndex: CellIndex.indexByString('B2'),
+    //   widthInPixels: 500,
+    // );
+
     excel.addImage(
       sheet: 'Sheet1',
-      imageBytes: imageBytes,
+      imageBytes: imageBytes2,
       cellIndex: CellIndex.indexByString('B2'),
-      widthInPixels: 500, // 100px 너비
-      heightInPixels: 500, // 100px 높이
+      offsetXInPixels: 400,
+      offsetYInPixels: 100,
+      // widthInPixels: 500, // 100px 너비
     );
 
-    excel.addImage(
-      sheet: 'Sheet1',
-      imageBytes: imageBytes2,
-      cellIndex: CellIndex.indexByString('J2'),
-      fitToCell: true,
-    );
+    // excel.addImage(
+    //   sheet: 'Sheet1',
+    //   imageBytes: imageBytes2,
+    //   cellIndex: CellIndex.indexByString('J32'),
+    // );
 
-    excel.addImage(
-      sheet: 'Sheet1',
-      imageBytes: imageBytes,
-      cellIndex: CellIndex.indexByString('A12'),
-    );
-
-    excel.addImage(
-      sheet: 'Sheet1',
-      imageBytes: imageBytes2,
-      cellIndex: CellIndex.indexByString('B12'),
-    );
-
-    excel.addImage(
-      sheet: 'Sheet1',
-      imageBytes: imageBytes,
-      cellIndex: CellIndex.indexByString('H12'),
-    );
+    // excel.addImage(
+    //   sheet: 'Sheet1',
+    //   imageBytes: imageBytes,
+    //   cellIndex: CellIndex.indexByString('B32'),
+    //   // 100px 너비
+    // );
 
     // 결과 파일 저장
     var resultBytes = excel.save();

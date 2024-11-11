@@ -9,6 +9,7 @@ import 'package:equatable/equatable.dart';
 import 'package:excel/src/models/image_model.dart';
 import 'package:excel/src/models/image_to_cell_model.dart';
 import 'package:excel/src/models/relations_targets_models.dart';
+import 'package:image/image.dart';
 import 'package:path/path.dart';
 import 'package:xml/xml.dart';
 import 'src/web_helper/client_save_excel.dart'

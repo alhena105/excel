@@ -1480,38 +1480,72 @@ class Sheet {
     _headerFooter = headerFooter;
   }
 
+  // 열 너비를 픽셀로 변환
+  double columnWidthToPixels(double columnWidth) {
+    // Excel UI의 열 너비를 픽셀로 변환
+    // 공식: 픽셀 = (열 너비 * 7) + 5
+    return (columnWidth * 7) + 5;
+  }
+
+  // 행 높이를 픽셀로 변환
+  double rowHeightToPixels(double rowHeight) {
+    // Excel UI의 행 높이(포인트)를 픽셀로 변환
+    // 공식: 픽셀 = 행 높이 * (96/72)
+    return rowHeight * (96 / 72);
+  }
+
+  // 픽셀을 EMU로 변환
+  int pixelsToEMU(double pixels) {
+    return (pixels * 9525).round();
+  }
+
+  // 병합된 셀의 전체 크기 계산 (EMU 단위)
+  (int width, int height) getMergedCellSize(CellIndex start, CellIndex end) {
+    double totalWidthPixels = 0;
+    double totalHeightPixels = 0;
+
+    // 열 너비 합산
+    for (var col = start.columnIndex; col <= end.columnIndex; col++) {
+      final colWidth =
+          getColumnWidth(col) ?? defaultColumnWidth ?? _excelDefaultColumnWidth;
+      totalWidthPixels += columnWidthToPixels(colWidth);
+    }
+
+    // 행 높이 합산
+    for (var row = start.rowIndex; row <= end.rowIndex; row++) {
+      final rowHeight =
+          getRowHeight(row) ?? defaultRowHeight ?? _excelDefaultRowHeight;
+      totalHeightPixels += rowHeightToPixels(rowHeight);
+    }
+
+    // 픽셀을 EMU로 변환하여 반환
+    return (pixelsToEMU(totalWidthPixels), pixelsToEMU(totalHeightPixels));
+  }
+
+  // 기존 getMergedCell 메서드 수정
   MergedCell? getMergedCell(CellIndex cellIndex) {
-    for (var span in _spanList) {
+    for (final span in _spanList) {
       if (span == null) continue;
 
       if (cellIndex.columnIndex >= span.columnSpanStart &&
           cellIndex.columnIndex <= span.columnSpanEnd &&
           cellIndex.rowIndex >= span.rowSpanStart &&
           cellIndex.rowIndex <= span.rowSpanEnd) {
-        // 병합된 셀의 전체 너비 계산 (픽셀 단위)
-        double totalWidth = 0;
-        for (var col = span.columnSpanStart; col <= span.columnSpanEnd; col++) {
-          final colWidth = getColumnWidth(col) ??
-              defaultColumnWidth ??
-              _excelDefaultColumnWidth;
-          totalWidth += colWidth * 9525; // EMU 단위로 직접 변환
-        }
+        final start = CellIndex.indexByColumnRow(
+            columnIndex: span.columnSpanStart, rowIndex: span.rowSpanStart);
+        final end = CellIndex.indexByColumnRow(
+            columnIndex: span.columnSpanEnd, rowIndex: span.rowSpanEnd);
 
-        // 병합된 셀의 전체 높이 계산 (픽셀 단위)
-        double totalHeight = 0;
-        for (var row = span.rowSpanStart; row <= span.rowSpanEnd; row++) {
-          final rowHeight =
-              getRowHeight(row) ?? defaultRowHeight ?? _excelDefaultRowHeight;
-          totalHeight += rowHeight * 9525; // EMU 단위로 직접 변환
-        }
+        final (width, height) = getMergedCellSize(start, end);
 
         return MergedCell(
-            startColumn: span.columnSpanStart,
-            endColumn: span.columnSpanEnd,
-            startRow: span.rowSpanStart,
-            endRow: span.rowSpanEnd,
-            width: totalWidth,
-            height: totalHeight);
+          startColumn: span.columnSpanStart,
+          endColumn: span.columnSpanEnd,
+          startRow: span.rowSpanStart,
+          endRow: span.rowSpanEnd,
+          width: width.toDouble(),
+          height: height.toDouble(),
+        );
       }
     }
     return null;
