@@ -1479,4 +1479,59 @@ class Sheet {
   set headerFooter(HeaderFooter? headerFooter) {
     _headerFooter = headerFooter;
   }
+
+  MergedCell? getMergedCell(CellIndex cellIndex) {
+    for (var span in _spanList) {
+      if (span == null) continue;
+
+      if (cellIndex.columnIndex >= span.columnSpanStart &&
+          cellIndex.columnIndex <= span.columnSpanEnd &&
+          cellIndex.rowIndex >= span.rowSpanStart &&
+          cellIndex.rowIndex <= span.rowSpanEnd) {
+        // 병합된 셀의 전체 너비 계산 (픽셀 단위)
+        double totalWidth = 0;
+        for (var col = span.columnSpanStart; col <= span.columnSpanEnd; col++) {
+          final colWidth = getColumnWidth(col) ??
+              defaultColumnWidth ??
+              _excelDefaultColumnWidth;
+          totalWidth += colWidth * 8; // Excel의 기본 문자 폭을 고려한 변환 (약 8픽셀)
+        }
+
+        // 병합된 셀의 전체 높이 계산 (픽셀 단위)
+        double totalHeight = 0;
+        for (var row = span.rowSpanStart; row <= span.rowSpanEnd; row++) {
+          final rowHeight =
+              getRowHeight(row) ?? defaultRowHeight ?? _excelDefaultRowHeight;
+          totalHeight += rowHeight * 1.5; // point to pixel 변환 (1pt ≈ 1.5px)
+        }
+
+        return MergedCell(
+            startColumn: span.columnSpanStart,
+            endColumn: span.columnSpanEnd,
+            startRow: span.rowSpanStart,
+            endRow: span.rowSpanEnd,
+            width: totalWidth,
+            height: totalHeight);
+      }
+    }
+    return null;
+  }
+}
+
+class MergedCell {
+  final int startColumn;
+  final int endColumn;
+  final int startRow;
+  final int endRow;
+  final double width;
+  final double height;
+
+  MergedCell({
+    required this.startColumn,
+    required this.endColumn,
+    required this.startRow,
+    required this.endRow,
+    required this.width,
+    required this.height,
+  });
 }

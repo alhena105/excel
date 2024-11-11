@@ -1137,8 +1137,6 @@ void main() {
       cellIndex: CellIndex.indexByString('B2'),
       widthInPixels: 500, // 100px 너비
       heightInPixels: 500, // 100px 높이
-      offsetXInPixels: 10, // 10px X축 오프셋
-      offsetYInPixels: 10, // 10px Y축 오프셋
     );
 
 // 크기를 지정하지 않으면 원본 크기의 1/2로 자동 설정됨
@@ -1146,11 +1144,12 @@ void main() {
       sheet: 'Sheet1',
       imageBytes: imageBytes2,
       cellIndex: CellIndex.indexByString('J2'),
+      fitToCell: true,
     );
 
     excel.addImage(
       sheet: 'Sheet1',
-      imageBytes: imageBytes2,
+      imageBytes: imageBytes,
       cellIndex: CellIndex.indexByString('A12'),
     );
 
@@ -1162,9 +1161,8 @@ void main() {
 
     excel.addImage(
       sheet: 'Sheet1',
-      imageBytes: imageBytes2,
+      imageBytes: imageBytes,
       cellIndex: CellIndex.indexByString('H12'),
-      fitToCell: true,
     );
 
     // 결과 파일 저장

@@ -610,28 +610,38 @@ extension ImageExtension on Excel {
     final sheetObject = _sheetMap[sheet];
     if (sheetObject == null) return;
 
-    // 셀 크기 계산
-    final cellWidth = sheetObject.getColumnWidth(cellIndex.columnIndex) ??
-        sheetObject.defaultColumnWidth ??
-        _excelDefaultColumnWidth;
-    final cellHeight = sheetObject.getRowHeight(cellIndex.rowIndex) ??
-        sheetObject.defaultRowHeight ??
-        _excelDefaultRowHeight;
+    double cellWidth;
+    double cellHeight;
+
+    // 병합된 셀 확인
+    final mergedCell = sheetObject.getMergedCell(cellIndex);
+
+    if (mergedCell != null) {
+      cellWidth = mergedCell.width;
+      cellHeight = mergedCell.height;
+    } else {
+      cellWidth = (sheetObject.getColumnWidth(cellIndex.columnIndex) ??
+              sheetObject.defaultColumnWidth ??
+              _excelDefaultColumnWidth) *
+          8;
+      cellHeight = (sheetObject.getRowHeight(cellIndex.rowIndex) ??
+              sheetObject.defaultRowHeight ??
+              _excelDefaultRowHeight) *
+          1.5;
+    }
 
     final imageHash = _getImageHash(imageBytes);
     String rId;
     ExcelImage image;
 
-    if (_imageCache.containsKey(imageHash)) {
-      rId = _imageCache[imageHash]!;
+    // 크기가 지정되지 않고 fitToCell도 false인 경우에만 원본 크기 사용
+    if (!fitToCell && widthInPixels == null && heightInPixels == null) {
       image = ExcelImage.from(
         imageBytes,
         name: name,
-        widthInPixels: widthInPixels,
-        heightInPixels: heightInPixels,
         offsetXInPixels: offsetXInPixels,
         offsetYInPixels: offsetYInPixels,
-        reuseRid: rId,
+        reuseRid: _imageCache[imageHash],
       );
     } else {
       image = ExcelImage.from(
@@ -641,16 +651,18 @@ extension ImageExtension on Excel {
         heightInPixels: heightInPixels,
         offsetXInPixels: offsetXInPixels,
         offsetYInPixels: offsetYInPixels,
+        reuseRid: _imageCache[imageHash],
       );
+    }
+
+    if (!_imageCache.containsKey(imageHash)) {
       rId = image.id;
       _imageCache[imageHash] = rId;
-
       _archive.addFile(image.toArchiveFile());
       _createDrawingRels(sheet, image);
       _updateContentTypes(image);
     }
 
-    // 셀 크기에 맞추기 옵션이 활성화된 경우
     if (fitToCell) {
       image.fitToCell(cellWidth, cellHeight);
     }
@@ -757,21 +769,7 @@ extension ImageExtension on Excel {
           XmlElement(XmlName('xdr:cNvPr'), [
             XmlAttribute(XmlName('id'), '${image.nvPrId}'),
             XmlAttribute(XmlName('name'), image.name),
-          ], [
-            XmlElement(XmlName('a:extLst'), [], [
-              XmlElement(XmlName('a:ext'), [
-                XmlAttribute(
-                    XmlName('uri'), '{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}'),
-              ], [
-                XmlElement(XmlName('a16:creationId'), [
-                  XmlAttribute(XmlName('xmlns:a16'),
-                      'http://schemas.microsoft.com/office/drawing/2014/main'),
-                  XmlAttribute(XmlName('id'),
-                      '{00000000-0008-0000-0000-00000${image.nvPrId}000000}'),
-                ], []),
-              ]),
-            ]),
-          ]),
+          ], []),
           XmlElement(XmlName('xdr:cNvPicPr'), [], [
             XmlElement(XmlName('a:picLocks'), [
               XmlAttribute(XmlName('noChangeAspect'), '1'),

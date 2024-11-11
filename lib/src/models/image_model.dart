@@ -19,9 +19,9 @@ class ExcelImage {
 
   static int _imageCounter = 2;
 
-  static int _pixelsToEmu(int pixels) {
+  static int _pixelsToEmu(double pixels) {
     // 1 inch = 96 pixels = 914400 EMU
-    return (pixels * 914400 / 96).round();
+    return (pixels * 9525).round();
   }
 
   static int _emuToPixels(int emu) => (emu / 9525).round();
@@ -38,8 +38,8 @@ class ExcelImage {
         this.nvPrId = reuseRid != null ? _imageCounter : _imageCounter++,
         this.originalWidth = width,
         this.originalHeight = height,
-        this.width = _pixelsToEmu((width * 0.5).round()),
-        this.height = _pixelsToEmu((height * 0.5).round()),
+        this.width = _pixelsToEmu(width.toDouble()),
+        this.height = _pixelsToEmu(height.toDouble()),
         this.offsetX = 0,
         this.offsetY = 0;
 
@@ -63,16 +63,23 @@ class ExcelImage {
       name: imageName,
       extension: extension,
       imageBytes: imageBytes,
-      width: image.width,
-      height: image.height,
+      width: widthInPixels ?? image.width,
+      height: heightInPixels ?? image.height,
       contentType: 'image/jpeg',
       reuseRid: reuseRid,
     );
 
-    if (widthInPixels != null) instance.width = _pixelsToEmu(widthInPixels);
-    if (heightInPixels != null) instance.height = _pixelsToEmu(heightInPixels);
-    instance.offsetX = _pixelsToEmu(offsetXInPixels);
-    instance.offsetY = _pixelsToEmu(offsetYInPixels);
+    if (widthInPixels != null)
+      instance.width = _pixelsToEmu(widthInPixels.toDouble());
+    if (heightInPixels != null)
+      instance.height = _pixelsToEmu(heightInPixels.toDouble());
+    instance.offsetX = _pixelsToEmu(offsetXInPixels.toDouble());
+    instance.offsetY = _pixelsToEmu(offsetYInPixels.toDouble());
+
+    print('width: ${instance.width}');
+    print('height: ${instance.height}');
+    print('offsetX: ${instance.offsetX}');
+    print('offsetY: ${instance.offsetY}');
 
     return instance;
   }
@@ -93,21 +100,24 @@ class ExcelImage {
     final availableWidth = cellWidth * (1 - 2 * padding);
     final availableHeight = cellHeight * (1 - 2 * padding);
 
-    final cellWidthEmu = _pixelsToEmu(availableWidth.round());
-    final cellHeightEmu = _pixelsToEmu(availableHeight.round());
-
     final ratio = originalWidth / originalHeight;
+    final cellRatio = availableWidth / availableHeight;
 
-    if (ratio > availableWidth / availableHeight) {
-      width = cellWidthEmu;
-      height = (cellWidthEmu / ratio).round();
+    double targetWidth, targetHeight;
+
+    if (ratio > cellRatio) {
+      targetWidth = availableWidth;
+      targetHeight = availableWidth / ratio;
     } else {
-      height = cellHeightEmu;
-      width = (cellHeightEmu * ratio).round();
+      targetHeight = availableHeight;
+      targetWidth = availableHeight * ratio;
     }
 
-    // 패딩을 고려한 오프셋 계산
-    offsetX = _pixelsToEmu((cellWidth * padding).round());
-    offsetY = _pixelsToEmu((cellHeight * padding).round());
+    width = _pixelsToEmu(targetWidth);
+    height = _pixelsToEmu(targetHeight);
+
+    // 가운데 정렬을 위한 오프셋 계산
+    offsetX = _pixelsToEmu((cellWidth - targetWidth) / 2);
+    offsetY = _pixelsToEmu((cellHeight - targetHeight) / 2);
   }
 }
