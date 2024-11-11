@@ -30,8 +30,9 @@ class ExcelImage {
     required int width,
     required int height,
     required this.contentType,
-  })  : this.id = 'rId${_imageCounter - 1}',
-        this.nvPrId = _imageCounter++,
+    String? reuseRid,
+  })  : this.id = reuseRid ?? 'rId${_imageCounter}',
+        this.nvPrId = reuseRid != null ? _imageCounter : _imageCounter++,
         this.originalWidth = width,
         this.originalHeight = height,
         this.width = _pixelsToEmu((width * 0.5).round()),
@@ -39,59 +40,38 @@ class ExcelImage {
         this.offsetX = 0,
         this.offsetY = 0;
 
-  static ExcelImage from(
-    Uint8List bytes, {
+  factory ExcelImage.from(
+    Uint8List imageBytes, {
     String? name,
     int? widthInPixels,
     int? heightInPixels,
     int offsetXInPixels = 0,
     int offsetYInPixels = 0,
+    String? reuseRid,
   }) {
-    final image = img.decodeImage(bytes);
+    final image = img.decodeImage(imageBytes);
     if (image == null) throw Exception('Invalid image data');
 
-    final extension = _getImageExtension(bytes);
-    final contentType = _getContentType(extension);
+    final extension = '.jpg';
+    final imageName =
+        name ?? 'Image_${DateTime.now().millisecondsSinceEpoch}$extension';
 
-    final excelImage = ExcelImage._(
-      name: name ?? 'Image_${DateTime.now().millisecondsSinceEpoch}$extension',
+    final instance = ExcelImage._(
+      name: imageName,
       extension: extension,
-      imageBytes: bytes,
+      imageBytes: imageBytes,
       width: image.width,
       height: image.height,
-      contentType: contentType,
+      contentType: 'image/jpeg',
+      reuseRid: reuseRid,
     );
 
-    if (widthInPixels != null) {
-      excelImage.width = _pixelsToEmu(widthInPixels);
-    }
-    if (heightInPixels != null) {
-      excelImage.height = _pixelsToEmu(heightInPixels);
-    }
-    excelImage.offsetX = _pixelsToEmu(offsetXInPixels);
-    excelImage.offsetY = _pixelsToEmu(offsetYInPixels);
+    if (widthInPixels != null) instance.width = _pixelsToEmu(widthInPixels);
+    if (heightInPixels != null) instance.height = _pixelsToEmu(heightInPixels);
+    instance.offsetX = _pixelsToEmu(offsetXInPixels);
+    instance.offsetY = _pixelsToEmu(offsetYInPixels);
 
-    return excelImage;
-  }
-
-  static String _getImageExtension(Uint8List bytes) {
-    if (bytes.length >= 2) {
-      if (bytes[0] == 0xFF && bytes[1] == 0xD8) return '.jpg';
-      if (bytes[0] == 0x89 && bytes[1] == 0x50) return '.png';
-    }
-    throw Exception(
-        'Unsupported image format. Only JPG and PNG are supported.');
-  }
-
-  static String _getContentType(String extension) {
-    switch (extension) {
-      case '.jpg':
-        return 'image/jpeg';
-      case '.png':
-        return 'image/png';
-      default:
-        throw Exception('Unsupported image format');
-    }
+    return instance;
   }
 
   String get mediaPath => 'xl/media/$name';

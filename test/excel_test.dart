@@ -1145,6 +1145,24 @@ void main() {
       cellIndex: CellIndex.indexByString('J2'),
     );
 
+    excel.addImage(
+      sheet: 'Sheet1',
+      imageBytes: imageBytes2,
+      cellIndex: CellIndex.indexByString('J12'),
+    );
+
+    excel.addImage(
+      sheet: 'Sheet1',
+      imageBytes: imageBytes2,
+      cellIndex: CellIndex.indexByString('B12'),
+    );
+
+    excel.addImage(
+      sheet: 'Sheet1',
+      imageBytes: imageBytes2,
+      cellIndex: CellIndex.indexByString('H12'),
+    );
+
     // 결과 파일 저장
     var resultBytes = excel.save();
     if (resultBytes != null) {

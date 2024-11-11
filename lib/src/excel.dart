@@ -58,6 +58,8 @@ class Excel {
   String? _defaultSheet;
   late Parser parser;
 
+  final Map<String, String> _imageCache = {};
+
   Excel._(this._archive) {
     parser = Parser._(this);
     parser._startParsing();
@@ -588,30 +590,61 @@ class Excel {
 }
 
 extension ImageExtension on Excel {
+  // 이미지 캐시를 저장할 맵 추가
+
+  String _getImageHash(Uint8List imageBytes) {
+    return base64Encode(imageBytes);
+  }
+
   void addImage({
     required String sheet,
     required Uint8List imageBytes,
     required CellIndex cellIndex,
     String? name,
-    int? widthInPixels, // 픽셀 단위
-    int? heightInPixels, // 픽셀 단위
+    int? widthInPixels,
+    int? heightInPixels,
     int offsetXInPixels = 0,
     int offsetYInPixels = 0,
   }) {
-    final image = ExcelImage.from(
-      imageBytes,
-      name: name,
-      widthInPixels: widthInPixels,
-      heightInPixels: heightInPixels,
-      offsetXInPixels: offsetXInPixels,
-      offsetYInPixels: offsetYInPixels,
-    );
+    final imageHash = _getImageHash(imageBytes);
+    String rId;
+    ExcelImage image;
 
-    _archive.addFile(image.toArchiveFile());
+    // 이미지가 이미 존재하는지 확인
+    if (_imageCache.containsKey(imageHash)) {
+      rId = _imageCache[imageHash]!;
+      // 기존 이미지 정보로 새 ExcelImage 객체 생성 (위치 정보만 다름)
+      image = ExcelImage.from(
+        imageBytes,
+        name: name,
+        widthInPixels: widthInPixels,
+        heightInPixels: heightInPixels,
+        offsetXInPixels: offsetXInPixels,
+        offsetYInPixels: offsetYInPixels,
+        reuseRid: rId,
+      );
+    } else {
+      // 새로운 이미지인 경우
+      image = ExcelImage.from(
+        imageBytes,
+        name: name,
+        widthInPixels: widthInPixels,
+        heightInPixels: heightInPixels,
+        offsetXInPixels: offsetXInPixels,
+        offsetYInPixels: offsetYInPixels,
+      );
+      rId = image.id;
+      _imageCache[imageHash] = rId;
+
+      // 새 이미지만 실제 파일로 추가
+      _archive.addFile(image.toArchiveFile());
+      _createDrawingRels(sheet, image);
+      _updateContentTypes(image);
+    }
+
+    // 모든 이미지에 대해 drawing 파일 업데이트
     _createDrawingFile(sheet, image, cellIndex);
-    _createDrawingRels(sheet, image);
     _updateWorksheetRels(sheet);
-    _updateContentTypes(image);
   }
 
   void _createDrawingRels(String sheet, ExcelImage image) {
