@@ -1494,7 +1494,7 @@ class Sheet {
           final colWidth = getColumnWidth(col) ??
               defaultColumnWidth ??
               _excelDefaultColumnWidth;
-          totalWidth += colWidth * 8; // Excel의 기본 문자 폭을 고려한 변환 (약 8픽셀)
+          totalWidth += colWidth * 9525; // EMU 단위로 직접 변환
         }
 
         // 병합된 셀의 전체 높이 계산 (픽셀 단위)
@@ -1502,7 +1502,7 @@ class Sheet {
         for (var row = span.rowSpanStart; row <= span.rowSpanEnd; row++) {
           final rowHeight =
               getRowHeight(row) ?? defaultRowHeight ?? _excelDefaultRowHeight;
-          totalHeight += rowHeight * 1.5; // point to pixel 변환 (1pt ≈ 1.5px)
+          totalHeight += rowHeight * 9525; // EMU 단위로 직접 변환
         }
 
         return MergedCell(

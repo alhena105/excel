@@ -116,8 +116,8 @@ class ExcelImage {
     width = _pixelsToEmu(targetWidth);
     height = _pixelsToEmu(targetHeight);
 
-    // 가운데 정렬을 위한 오프셋 계산
-    offsetX = _pixelsToEmu((cellWidth - targetWidth) / 2);
-    offsetY = _pixelsToEmu((cellHeight - targetHeight) / 2);
+    // 가운데 정렬을 위한 오프셋 계산 (EMU 단위로 직접 지정)
+    offsetX = ((cellWidth * 9525) - width) ~/ 2; // EMU 단위로 직접 계산
+    offsetY = ((cellHeight * 9525) - height) ~/ 2; // EMU 단위로 직접 계산
   }
 }

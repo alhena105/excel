@@ -739,7 +739,8 @@ extension ImageExtension on Excel {
     } else {
       drawingXml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" 
-          xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+          xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+          xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main">
   ${_createImageElement(image, cellIndex)}
 </xdr:wsDr>''';
     }
@@ -769,7 +770,21 @@ extension ImageExtension on Excel {
           XmlElement(XmlName('xdr:cNvPr'), [
             XmlAttribute(XmlName('id'), '${image.nvPrId}'),
             XmlAttribute(XmlName('name'), image.name),
-          ], []),
+          ], [
+            XmlElement(XmlName('a:extLst'), [], [
+              XmlElement(XmlName('a:ext'), [
+                XmlAttribute(
+                    XmlName('uri'), '{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}'),
+              ], [
+                XmlElement(XmlName('a16:creationId'), [
+                  XmlAttribute(XmlName('xmlns:a16'),
+                      'http://schemas.microsoft.com/office/drawing/2014/main'),
+                  XmlAttribute(XmlName('id'),
+                      '{00000000-0008-0000-0000-00000${image.nvPrId}000000}'),
+                ], []),
+              ]),
+            ]),
+          ]),
           XmlElement(XmlName('xdr:cNvPicPr'), [], [
             XmlElement(XmlName('a:picLocks'), [
               XmlAttribute(XmlName('noChangeAspect'), '1'),

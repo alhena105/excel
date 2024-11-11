@@ -1139,7 +1139,6 @@ void main() {
       heightInPixels: 500, // 100px 높이
     );
 
-// 크기를 지정하지 않으면 원본 크기의 1/2로 자동 설정됨
     excel.addImage(
       sheet: 'Sheet1',
       imageBytes: imageBytes2,
