@@ -87,13 +87,6 @@ class ExcelImage {
 
     columnSpan = (imageWidthPx / cellWidth).ceil();
     rowSpan = (imageHeightPx / cellHeight).ceil();
-
-    print('Cell span calculations:');
-    print('  Image size (px): ${imageWidthPx}x${imageHeightPx}');
-    print('  Cell size (px): ${cellWidth}x${cellHeight}');
-    print('  Required spans: ${columnSpan}x${rowSpan}');
-    print('  Final size (EMU): ${width}x${height}');
-    print('  Offset (EMU): ${offsetX}x${offsetY}');
   }
 
   String get mediaPath => 'xl/media/$name';
