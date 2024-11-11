@@ -1161,6 +1161,7 @@ void main() {
       sheet: 'Sheet1',
       imageBytes: imageBytes2,
       cellIndex: CellIndex.indexByString('H12'),
+      fitToCell: true,
     );
 
     // 결과 파일 저장

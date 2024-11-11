@@ -83,4 +83,26 @@ class ExcelImage {
       imageBytes,
     );
   }
+
+  void fitToCell(double cellWidth, double cellHeight) {
+    // 셀 크기를 EMU 단위로 변환
+    final cellWidthEmu = _pixelsToEmu(cellWidth.round());
+    final cellHeightEmu = _pixelsToEmu(cellHeight.round());
+
+    // 이미지 비율 계산
+    final ratio = originalWidth / originalHeight;
+
+    // 셀 크기에 맞게 이미지 크기 조정하면서 비율 유지
+    if (ratio > cellWidth / cellHeight) {
+      width = cellWidthEmu;
+      height = (cellWidthEmu / ratio).round();
+    } else {
+      height = cellHeightEmu;
+      width = (cellHeightEmu * ratio).round();
+    }
+
+    // 가운데 정렬을 위한 오프셋 계산
+    offsetX = (cellWidthEmu - width) ~/ 2;
+    offsetY = (cellHeightEmu - height) ~/ 2;
+  }
 }
