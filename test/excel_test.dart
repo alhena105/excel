@@ -1127,6 +1127,9 @@ void main() {
     var imageFile2 = './test/test_resources/white.jpg';
     var imageBytes2 = File(imageFile2).readAsBytesSync();
 
+    excel.merge('Sheet1', CellIndex.indexByString('J2'),
+        CellIndex.indexByString('M14'));
+
     // Sheet1에 이미지 추가
     excel.addImage(
       sheet: 'Sheet1',
@@ -1148,7 +1151,7 @@ void main() {
     excel.addImage(
       sheet: 'Sheet1',
       imageBytes: imageBytes2,
-      cellIndex: CellIndex.indexByString('J12'),
+      cellIndex: CellIndex.indexByString('A12'),
     );
 
     excel.addImage(

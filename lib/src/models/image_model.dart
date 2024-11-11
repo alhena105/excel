@@ -19,7 +19,10 @@ class ExcelImage {
 
   static int _imageCounter = 2;
 
-  static int _pixelsToEmu(int pixels) => pixels * 9525;
+  static int _pixelsToEmu(int pixels) {
+    // 1 inch = 96 pixels = 914400 EMU
+    return (pixels * 914400 / 96).round();
+  }
 
   static int _emuToPixels(int emu) => (emu / 9525).round();
 
@@ -85,15 +88,17 @@ class ExcelImage {
   }
 
   void fitToCell(double cellWidth, double cellHeight) {
-    // 셀 크기를 EMU 단위로 변환
-    final cellWidthEmu = _pixelsToEmu(cellWidth.round());
-    final cellHeightEmu = _pixelsToEmu(cellHeight.round());
+    // 셀 패딩 고려 (Excel 기본값: 약 5%)
+    final padding = 0.05;
+    final availableWidth = cellWidth * (1 - 2 * padding);
+    final availableHeight = cellHeight * (1 - 2 * padding);
 
-    // 이미지 비율 계산
+    final cellWidthEmu = _pixelsToEmu(availableWidth.round());
+    final cellHeightEmu = _pixelsToEmu(availableHeight.round());
+
     final ratio = originalWidth / originalHeight;
 
-    // 셀 크기에 맞게 이미지 크기 조정하면서 비율 유지
-    if (ratio > cellWidth / cellHeight) {
+    if (ratio > availableWidth / availableHeight) {
       width = cellWidthEmu;
       height = (cellWidthEmu / ratio).round();
     } else {
@@ -101,8 +106,8 @@ class ExcelImage {
       width = (cellHeightEmu * ratio).round();
     }
 
-    // 가운데 정렬을 위한 오프셋 계산
-    offsetX = (cellWidthEmu - width) ~/ 2;
-    offsetY = (cellHeightEmu - height) ~/ 2;
+    // 패딩을 고려한 오프셋 계산
+    offsetX = _pixelsToEmu((cellWidth * padding).round());
+    offsetY = _pixelsToEmu((cellHeight * padding).round());
   }
 }
