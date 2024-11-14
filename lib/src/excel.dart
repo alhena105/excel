@@ -812,9 +812,7 @@ extension ImageExtension on Excel {
             XmlAttribute(XmlName('xmlns:r'),
                 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'),
             XmlAttribute(XmlName('r:embed'), image.id),
-            XmlAttribute(XmlName('cstate'), 'print'),
           ], []),
-          XmlElement(XmlName('a:srcRect'), [], []),
           XmlElement(XmlName('a:stretch'), [], [
             XmlElement(XmlName('a:fillRect'), [], []),
           ]),
@@ -834,10 +832,6 @@ extension ImageExtension on Excel {
             XmlAttribute(XmlName('prst'), 'rect'),
           ], [
             XmlElement(XmlName('a:avLst'), [], []),
-          ]),
-          XmlElement(XmlName('a:noFill'), [], []),
-          XmlElement(XmlName('a:ln'), [], [
-            XmlElement(XmlName('a:noFill'), [], []),
           ]),
         ]),
       ]),
