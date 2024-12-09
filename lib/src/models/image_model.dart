@@ -52,25 +52,24 @@ class ExcelImage {
     int offsetYInPixels = 0,
     String? reuseRid,
   }) {
-    final image = img.decodeImage(imageBytes);
-    if (image == null) throw Exception('Invalid image data');
-
     final extension = '.jpg';
     final imageName =
         name ?? 'Image_${DateTime.now().millisecondsSinceEpoch}$extension';
 
-    final finalWidth = widthInPixels ?? image.width;
-    final finalHeight = heightInPixels ??
-        (widthInPixels != null
-            ? (image.height * widthInPixels / image.width).round()
-            : image.height);
+    if (widthInPixels == null || heightInPixels == null) {
+      final image = img.decodeImage(imageBytes);
+      if (image == null) throw Exception('Invalid image data');
+
+      widthInPixels = image.width;
+      heightInPixels = image.height;
+    }
 
     final instance = ExcelImage._(
       name: imageName,
       extension: extension,
       imageBytes: imageBytes,
-      width: finalWidth,
-      height: finalHeight,
+      width: widthInPixels,
+      height: heightInPixels,
       contentType: 'image/jpeg',
       reuseRid: reuseRid,
     );
