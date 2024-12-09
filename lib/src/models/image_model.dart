@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
 import 'package:archive/archive.dart';
+import 'package:image_size_getter/image_size_getter.dart';
 
 class ExcelImage {
   final String id;
@@ -56,20 +57,14 @@ class ExcelImage {
     final imageName =
         name ?? 'Image_${DateTime.now().millisecondsSinceEpoch}$extension';
 
-    if (widthInPixels == null || heightInPixels == null) {
-      final image = img.decodeJpg(imageBytes);
-      if (image == null) throw Exception('Invalid image data');
-
-      widthInPixels = image.width;
-      heightInPixels = image.height;
-    }
+    final memoryImageSize = ImageSizeGetter.getSize(MemoryInput(imageBytes));
 
     final instance = ExcelImage._(
       name: imageName,
       extension: extension,
       imageBytes: imageBytes,
-      width: widthInPixels,
-      height: heightInPixels,
+      width: widthInPixels ?? memoryImageSize.width,
+      height: heightInPixels ?? memoryImageSize.height,
       contentType: 'image/jpeg',
       reuseRid: reuseRid,
     );
