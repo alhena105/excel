@@ -659,9 +659,10 @@ extension ImageExtension on Excel {
     } else {
       var calculatedHeight = heightInPixels;
       if (widthInPixels != null && heightInPixels == null) {
-        final image = decodeImage(imageBytes);
-        if (image != null) {
-          var ratio = image.height / image.width;
+        final memoryImageSize =
+            ImageSizeGetter.getSize(MemoryInput(imageBytes));
+        if (memoryImageSize != null) {
+          var ratio = memoryImageSize.height / memoryImageSize.width;
           calculatedHeight = (widthInPixels * ratio).round();
         }
       }
