@@ -57,7 +57,7 @@ class ExcelImage {
         name ?? 'Image_${DateTime.now().millisecondsSinceEpoch}$extension';
 
     if (widthInPixels == null || heightInPixels == null) {
-      final image = img.decodeImage(imageBytes);
+      final image = img.decodeJpg(imageBytes);
       if (image == null) throw Exception('Invalid image data');
 
       widthInPixels = image.width;
