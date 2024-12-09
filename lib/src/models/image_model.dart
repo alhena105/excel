@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'package:image/image.dart' as img;
 
 import 'package:archive/archive.dart';
 import 'package:image_size_getter/image_size_getter.dart';
